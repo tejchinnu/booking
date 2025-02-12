@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Booking Slots</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: aquamarine;
+            padding: 20px;
+        }
+        .slot {
+            display: inline-block;
+            width: 50px;
+            height: 50px;
+            line-height: 50px;
+            margin: 5px;
+            background-color: #ccc;
+            color: #000;
+            border-radius: 5px;
+            cursor: pointer;
+            user-select: none;
+        }
+        .selected {
+            background-color: green;
+            color: white;
+        }
+        .info {
+            margin-top: 20px;
+            font-size: 20px;
+        }
+    </style>
+</head>
+<body>
+<h2>MARWADA BULL FESTIVAL</h2>
+    <h1>Booking Slots</h1>
+    <div id="slotsContainer"></div>
+
+    <div class="info">
+        <p>Total Slots Booked: <span id="totalSlots">0</span></p>
+        <p>Total Amount: ₹ <span id="totalAmount">0</span></p>
+    </div>
+
+    <script>
+        const slotsContainer = document.getElementById('slotsContainer');
+        const totalSlots = document.getElementById('totalSlots');
+        const totalAmount = document.getElementById('totalAmount');
+        const slotPrice = 3000;
+        const totalSlotsCount = 500;
+        let selectedSlots = new Set();
+        let pressTimer;
+
+        // Load Selected Slots from Local Storage
+        const savedSlots = JSON.parse(localStorage.getItem('selectedSlots')) || [];
+        selectedSlots = new Set(savedSlots);
+
+        // Create Slots
+        for (let i = 1; i <= totalSlotsCount; i++) {
+            const slot = document.createElement('div');
+            slot.classList.add('slot');
+            slot.innerText = i;
+            slot.dataset.slotNumber = i;
+            slotsContainer.appendChild(slot);
+
+            // Mark as Selected if in Local Storage
+            if (selectedSlots.has(i)) {
+                slot.classList.add('selected');
+            }
+
+            // Click Event for Selecting Slot
+            slot.addEventListener('click', function() {
+                if (!selectedSlots.has(i)) {
+                    selectedSlots.add(i);
+                    slot.classList.add('selected');
+                }
+                updateInfo();
+            });
+
+            // Long Press Event for Removing Slot
+            slot.addEventListener('mousedown', function() {
+                pressTimer = setTimeout(() => {
+                    if (selectedSlots.has(i)) {
+                        selectedSlots.delete(i);
+                        slot.classList.remove('selected');
+                        updateInfo();
+                    }
+                }, 800);
+            });
+
+            slot.addEventListener('mouseup', function() {
+                clearTimeout(pressTimer);
+            });
+
+            slot.addEventListener('mouseleave', function() {
+                clearTimeout(pressTimer);
+            });
+        }
+
+        // Update Total Slots, Amount, and Local Storage
+        function updateInfo() {
+            const totalBooked = selectedSlots.size;
+            totalSlots.innerText = totalBooked;
+            totalAmount.innerText = totalBooked * slotPrice;
+
+            // Save to Local Storage
+            localStorage.setItem('selectedSlots', JSON.stringify([...selectedSlots]));
+        }
+
+        // Initialize Info on Page Load
+        updateInfo();
+    </script>
+
+</body>
+</html>
