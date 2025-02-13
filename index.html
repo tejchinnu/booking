@@ -59,21 +59,14 @@
             color: white;
             cursor: not-allowed;
         }
-        .confirmation-tab {
-            display: none;
-            background: white;
-            color: black;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-            width: 50%;
-            margin: 20px auto;
-        }
-        .search-bar {
-            margin: 20px auto;
-            width: 50%;
-        }
     </style>
+
+    <!-- Firebase App (Base) -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <!-- Firebase Authentication -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
+    <!-- Firebase Realtime Database -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
 </head>
 <body>
     <h1>Booking Slots</h1>
@@ -85,94 +78,163 @@
     <h3>Total Slots Booked: <span id="total-slots">0</span></h3>
     <h3>Total Amount: ₹<span id="total-amount">0</span></h3>
 
-    <input type="text" class="search-bar" id="phone-search" placeholder="Search by Phone Number">
-
     <div class="slot-grid" id="slot-grid"></div>
-    <div class="confirmation-tab" id="confirmation-tab">
-        <h2>Confirm Booking</h2>
-        <p>Selected Slots: <span id="selected-slots"></span></p>
-        <p>Phone Number: <input type="text" id="phone-number" placeholder="Enter Phone Number"></p>
-        <button onclick="confirmBooking()">Confirm</button>
-    </div>
-<script>
-    // Firebase configuration
-    const firebaseConfig = {
-        apiKey: "AIzaSyBD77vl_0K-xbV4f3LNHK3yFKi51V_C_zE",
-        authDomain: "booking-slot-a1edb.firebaseapp.com",
-        databaseURL: "https://booking-slot-a1edb-default-rtdb.firebaseio.com",
-        projectId: "booking-slot-a1edb",
-        storageBucket: "booking-slot-a1edb.firebasestorage.app",
-        messagingSenderId: "31706590505",
-        appId: "1:31706590505:web:43b931de69cf9e9e8ddb38",
-        measurementId: "G-B91QJCE3VT"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    const provider = new firebase.auth.GoogleAuthProvider();
-    const database = firebase.database();
-    let currentUser = null;
 
-    auth.onAuthStateChanged(user => {
-        if (user) {
-            document.querySelector(".sign-in").style.display = "none";
-            document.querySelector(".sign-out").style.display = "inline-block";
-            currentUser = user;
-            loadSlots();
-        } else {
-            document.querySelector(".sign-in").style.display = "inline-block";
-            document.querySelector(".sign-out").style.display = "none";
-            currentUser = null;
-        }
-    });
+    <script>
+        // Firebase configuration
+         {
+  apiKey: "AIzaSyBD77vl_0K-xbV4f3LNHK3yFKi51V_C_zE",
+  authDomain: "booking-slot-a1edb.firebaseapp.com",
+  databaseURL: "https://booking-slot-a1edb-default-rtdb.firebaseio.com",
+  projectId: "booking-slot-a1edb",
+  storageBucket: "booking-slot-a1edb.firebasestorage.app",
+  messagingSenderId: "31706590505",
+  appId: "1:31706590505:web:43b931de69cf9e9e8ddb38",
+  measurementId: "G-B91QJCE3VT"
+};
 
-    function loadSlots() {
-        const slotGrid = document.getElementById("slot-grid");
-        slotGrid.innerHTML = '';
-        for (let i = 1; i <= 500; i++) {
-            const slot = document.createElement("div");
-            slot.classList.add("slot");
-            slot.textContent = "Slot " + i;
-            slot.onclick = () => selectSlot(i);
-            slotGrid.appendChild(slot);
-        }
-    }
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const provider = new firebase.auth.GoogleAuthProvider();
+        const database = firebase.database();
+        let currentUser = null;
 
-    function selectSlot(slotNumber) {
-        const confirmationTab = document.getElementById("confirmation-tab");
-        const selectedSlots = document.getElementById("selected-slots");
-        selectedSlots.textContent = slotNumber;
-        confirmationTab.style.display = "block";
-    }
-
-    function confirmBooking() {
-        const phoneNumber = document.getElementById("phone-number").value;
-        if (currentUser && phoneNumber) {
-            const selectedSlot = document.getElementById("selected-slots").textContent;
-            const bookingRef = database.ref("bookedSlots/" + phoneNumber);
-            bookingRef.set([parseInt(selectedSlot)]);
-            alert("Booking Confirmed!");
-        }
-    }
-
-    document.getElementById("phone-search").addEventListener("input", function() {
-        const phoneNumber = this.value;
-        const slotGrid = document.getElementById("slot-grid");
-        slotGrid.innerHTML = '';
-        if (phoneNumber) {
-            const searchRef = database.ref("bookedSlots/" + phoneNumber);
-            searchRef.once("value", snapshot => {
-                const bookedSlots = snapshot.val() || [];
-                bookedSlots.forEach(slotNumber => {
-                    const slot = document.createElement("div");
-                    slot.classList.add("slot", "booked");
-                    slot.textContent = "Slot " + slotNumber;
-                    slotGrid.appendChild(slot);
+        // Sign In Function
+        function signIn() {
+            auth.signInWithPopup(provider)
+                .then(result => {
+                    console.log("User signed in:", result.user.displayName);
+                    alert("Signed in as " + result.user.displayName);
+                })
+                .catch(error => {
+                    console.error("Sign In Error", error);
+                    alert("Sign In Failed: " + error.message);
                 });
-            });
-        } else {
-            loadSlots();
         }
-    });
-</script>
+
+        // Sign Out Function
+        function signOut() {
+            auth.signOut().then(() => {
+                console.log("User signed out");
+                alert("Signed out successfully");
+                currentUser = null;
+                document.getElementById("slot-grid").innerHTML = "";
+                document.getElementById("total-slots").textContent = 0;
+                document.getElementById("total-amount").textContent = 0;
+            }).catch(error => {
+                console.error("Sign Out Error", error);
+                alert("Sign Out Failed: " + error.message);
+            });
+        }
+
+        // Listen for Authentication State Changes
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                document.querySelector(".sign-in").style.display = "none";
+                document.querySelector(".sign-out").style.display = "inline-block";
+                currentUser = user;
+                loadSlots();
+            } else {
+                document.querySelector(".sign-in").style.display = "inline-block";
+                document.querySelector(".sign-out").style.display = "none";
+                currentUser = null;
+            }
+        });
+
+        // Load and Display Slots
+        function loadSlots() {
+            const slotGrid = document.getElementById("slot-grid");
+            slotGrid.innerHTML = '';
+
+            for (let i = 1; i <= 500; i++) {
+                const slot = document.createElement("div");
+                slot.classList.add("slot");
+                slot.textContent = "Slot " + i;
+
+                // Short Click to Confirm
+                slot.onclick = () => handleClick(slot, i);
+
+                // Long Press to Remove
+                let pressTimer;
+                slot.onmousedown = () => {
+                    pressTimer = setTimeout(() => handleLongPress(slot, i), 800);
+                };
+                slot.onmouseup = () => clearTimeout(pressTimer);
+                slot.onmouseleave = () => clearTimeout(pressTimer);
+
+                slotGrid.appendChild(slot);
+            }
+
+            const bookedSlotsRef = database.ref("bookedSlots");
+            bookedSlotsRef.on("value", snapshot => {
+                const bookedSlots = snapshot.val() || {};
+                document.querySelectorAll(".slot").forEach(slot => {
+                    const slotNumber = parseInt(slot.textContent.replace("Slot ", ""));
+                    let isBooked = false;
+                    for (const uid in bookedSlots) {
+                        if (bookedSlots[uid].includes(slotNumber)) {
+                            isBooked = true;
+                            if (uid === currentUser?.uid) {
+                                slot.classList.add("selected");
+                                slot.classList.remove("booked");
+                            } else {
+                                slot.classList.add("booked");
+                                slot.classList.remove("selected");
+                            }
+                            break;
+                        }
+                    }
+                    if (!isBooked) {
+                        slot.classList.remove("selected");
+                        slot.classList.remove("booked");
+                    }
+                });
+                updateTotal();
+            });
+        }
+
+        function handleClick(slotElement, slotNumber) {
+            if (slotElement.classList.contains("booked")) {
+                alert("This slot is already booked by another user.");
+                return;
+            }
+            if (!slotElement.classList.contains("selected")) {
+                const confirmed = confirm("Do you want to book this slot?");
+                if (confirmed) {
+                    slotElement.classList.add("selected");
+                    saveSelectedSlots();
+                }
+            }
+        }
+
+        function handleLongPress(slotElement, slotNumber) {
+            if (slotElement.classList.contains("selected")) {
+                const confirmed = confirm("Do you want to remove this slot?");
+                if (confirmed) {
+                    slotElement.classList.remove("selected");
+                    saveSelectedSlots();
+                }
+            }
+        }
+
+        function saveSelectedSlots() {
+            if (currentUser) {
+                const selectedSlots = [];
+                document.querySelectorAll(".slot.selected").forEach(slot => {
+                    selectedSlots.push(parseInt(slot.textContent.replace("Slot ", "")));
+                });
+                const userSlotsRef = database.ref("bookedSlots/" + currentUser.uid);
+                userSlotsRef.set(selectedSlots);
+            }
+        }
+
+        function updateTotal() {
+            const selectedSlots = document.querySelectorAll(".slot.selected").length;
+            document.getElementById("total-slots").textContent = selectedSlots;
+            document.getElementById("total-amount").textContent = selectedSlots * 3000;
+        }
+    </script>
 </body>
 </html>
+
