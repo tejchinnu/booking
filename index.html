@@ -12,7 +12,7 @@
             color: white;
         }
         .auth-buttons {
-            margin-top: 20%;
+            margin-top: 20px;
         }
         button {
             padding: 10px 20px;
@@ -35,12 +35,13 @@
             color: white;
         }
     </style>
+
     <!-- Firebase App (Base) -->
-    <script src="https://www.gstatic.com/firebasejs/9.x.x/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <!-- Firebase Authentication -->
-    <script src="https://www.gstatic.com/firebasejs/9.x.x/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
     <!-- Firebase Realtime Database -->
-    <script src="https://www.gstatic.com/firebasejs/9.x.x/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
 </head>
 <body>
     <h1>Booking Slots</h1>
@@ -53,40 +54,69 @@
     <h3>Total Amount: ₹<span id="total-amount">0</span></h3>
 
     <script>
-       // Import Firebase modules
-import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
-import { getDatabase, ref, set, onValue } from "firebase/database";
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+            databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID",
+            measurementId: "YOUR_MEASUREMENT_ID"
+        };
 
-// Firebase configuration
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID",
-  measurementId: "YOUR_MEASUREMENT_ID"
-};
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const provider = new firebase.auth.GoogleAuthProvider();
+        const database = firebase.database();
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const provider = new GoogleAuthProvider();
-const database = getDatabase(app);
-
+        // Sign In Function
+        function signIn() {
+            auth.signInWithPopup(provider)
+                .then(result => {
+                    console.log("User signed in:", result.user.displayName);
+                    alert("Signed in as " + result.user.displayName);
+                })
                 .catch(error => {
                     console.error("Sign In Error", error);
+                    alert("Sign In Failed: " + error.message);
                 });
         }
 
+        // Sign Out Function
         function signOut() {
             auth.signOut().then(() => {
                 console.log("User signed out");
                 alert("Signed out successfully");
+            }).catch(error => {
+                console.error("Sign Out Error", error);
+                alert("Sign Out Failed: " + error.message);
             });
         }
+
+        // Listen for Authentication State Changes
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                document.querySelector(".sign-in").style.display = "none";
+                document.querySelector(".sign-out").style.display = "inline-block";
+                console.log("User logged in: ", user.displayName);
+
+                // Fetch and Display Slot Data
+                const totalSlotsRef = database.ref("totalSlots");
+                totalSlotsRef.on("value", snapshot => {
+                    const totalSlots = snapshot.val() || 0;
+                    document.getElementById("total-slots").textContent = totalSlots;
+                    document.getElementById("total-amount").textContent = totalSlots * 3000;
+                });
+
+            } else {
+                document.querySelector(".sign-in").style.display = "inline-block";
+                document.querySelector(".sign-out").style.display = "none";
+                console.log("No user signed in.");
+            }
+        });
     </script>
 </body>
 </html>
