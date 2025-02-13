@@ -76,89 +76,127 @@
     <!-- Slots Grid -->
     <div class="slot-grid" id="slot-grid"></div>
 
-    <script>
-        // Firebase configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyBD77vl_0K-xbV4f3LNHK3yFKi51V_C_zE",
-            authDomain: "booking-slot-a1edb.firebaseapp.com",
-            databaseURL: "https://booking-slot-a1edb-default-rtdb.firebaseio.com",
-            projectId: "booking-slot-a1edb",
-            storageBucket: "booking-slot-a1edb.firebasestorage.app",
-            messagingSenderId: "31706590505",
-            appId: "1:31706590505:web:43b931de69cf9e9e8ddb38",
-            measurementId: "G-B91QJCE3VT"
-        };
+   <script>
+    // Firebase configuration
+    const firebaseConfig = {
+        apiKey: "AIzaSyBD77vl_0K-xbV4f3LNHK3yFKi51V_C_zE",
+        authDomain: "booking-slot-a1edb.firebaseapp.com",
+        databaseURL: "https://booking-slot-a1edb-default-rtdb.firebaseio.com",
+        projectId: "booking-slot-a1edb",
+        storageBucket: "booking-slot-a1edb.firebasestorage.app",
+        messagingSenderId: "31706590505",
+        appId: "1:31706590505:web:43b931de69cf9e9e8ddb38",
+        measurementId: "G-B91QJCE3VT"
+    };
 
-        // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const provider = new firebase.auth.GoogleAuthProvider();
-        const database = firebase.database();
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const provider = new firebase.auth.GoogleAuthProvider();
+    const database = firebase.database();
+    let currentUser = null;
 
-        // Sign In Function
-        function signIn() {
-            auth.signInWithPopup(provider)
-                .then(result => {
-                    console.log("User signed in:", result.user.displayName);
-                    alert("Signed in as " + result.user.displayName);
-                })
-                .catch(error => {
-                    console.error("Sign In Error", error);
-                    alert("Sign In Failed: " + error.message);
-                });
+    // Sign In Function
+    function signIn() {
+        auth.signInWithPopup(provider)
+            .then(result => {
+                console.log("User signed in:", result.user.displayName);
+                alert("Signed in as " + result.user.displayName);
+            })
+            .catch(error => {
+                console.error("Sign In Error", error);
+                alert("Sign In Failed: " + error.message);
+            });
+    }
+
+    // Sign Out Function
+    function signOut() {
+        auth.signOut().then(() => {
+            console.log("User signed out");
+            alert("Signed out successfully");
+            currentUser = null;
+            document.getElementById("slot-grid").innerHTML = "";
+            document.getElementById("total-slots").textContent = 0;
+            document.getElementById("total-amount").textContent = 0;
+        }).catch(error => {
+            console.error("Sign Out Error", error);
+            alert("Sign Out Failed: " + error.message);
+        });
+    }
+
+    // Listen for Authentication State Changes
+    auth.onAuthStateChanged(user => {
+        if (user) {
+            document.querySelector(".sign-in").style.display = "none";
+            document.querySelector(".sign-out").style.display = "inline-block";
+            console.log("User logged in: ", user.displayName);
+            currentUser = user;
+            loadSlots();
+        } else {
+            document.querySelector(".sign-in").style.display = "inline-block";
+            document.querySelector(".sign-out").style.display = "none";
+            console.log("No user signed in.");
+            currentUser = null;
+        }
+    });
+
+    // Generate 500 Slots
+    function loadSlots() {
+        const slotGrid = document.getElementById("slot-grid");
+        slotGrid.innerHTML = '';
+
+        for (let i = 1; i <= 500; i++) {
+            const slot = document.createElement("div");
+            slot.classList.add("slot");
+            slot.textContent = "Slot " + i;
+            slot.onclick = () => toggleSlot(slot, i);
+            slotGrid.appendChild(slot);
         }
 
-        // Sign Out Function
-        function signOut() {
-            auth.signOut().then(() => {
-                console.log("User signed out");
-                alert("Signed out successfully");
-            }).catch(error => {
-                console.error("Sign Out Error", error);
-                alert("Sign Out Failed: " + error.message);
+        if (currentUser) {
+            const userSlotsRef = database.ref("userSlots/" + currentUser.uid);
+            userSlotsRef.on("value", snapshot => {
+                const selectedSlots = snapshot.val() || [];
+                document.querySelectorAll(".slot").forEach(slot => {
+                    const slotNumber = parseInt(slot.textContent.replace("Slot ", ""));
+                    if (selectedSlots.includes(slotNumber)) {
+                        slot.classList.add("selected");
+                    } else {
+                        slot.classList.remove("selected");
+                    }
+                });
+                updateTotal();
             });
         }
+    }
 
-        // Listen for Authentication State Changes
-        auth.onAuthStateChanged(user => {
-            if (user) {
-                document.querySelector(".sign-in").style.display = "none";
-                document.querySelector(".sign-out").style.display = "inline-block";
-                console.log("User logged in: ", user.displayName);
-                loadSlots();
-            } else {
-                document.querySelector(".sign-in").style.display = "inline-block";
-                document.querySelector(".sign-out").style.display = "none";
-                console.log("No user signed in.");
-            }
-        });
+    // Toggle Slot Selection
+    function toggleSlot(slotElement, slotNumber) {
+        slotElement.classList.toggle("selected");
+        updateTotal();
+        saveSelectedSlots();
+    }
 
-        // Generate 500 Slots
-        function loadSlots() {
-            const slotGrid = document.getElementById("slot-grid");
-            slotGrid.innerHTML = '';
-
-            for (let i = 1; i <= 500; i++) {
-                const slot = document.createElement("div");
-                slot.classList.add("slot");
-                slot.textContent = "Slot " + i;
-                slot.onclick = () => toggleSlot(slot, i);
-                slotGrid.appendChild(slot);
-            }
+    // Save Selected Slots to Firebase
+    function saveSelectedSlots() {
+        if (currentUser) {
+            const selectedSlots = [];
+            document.querySelectorAll(".slot.selected").forEach(slot => {
+                const slotNumber = parseInt(slot.textContent.replace("Slot ", ""));
+                selectedSlots.push(slotNumber);
+            });
+            const userSlotsRef = database.ref("userSlots/" + currentUser.uid);
+            userSlotsRef.set(selectedSlots);
         }
+    }
 
-        // Toggle Slot Selection
-        function toggleSlot(slotElement, slotNumber) {
-            slotElement.classList.toggle("selected");
-            updateTotal();
-        }
+    // Update Total Slots and Amount
+    function updateTotal() {
+        const selectedSlots = document.querySelectorAll(".slot.selected").length;
+        document.getElementById("total-slots").textContent = selectedSlots;
+        document.getElementById("total-amount").textContent = selectedSlots * 3000;
+    }
+</script>
 
-        // Update Total Slots and Amount
-        function updateTotal() {
-            const selectedSlots = document.querySelectorAll(".slot.selected").length;
-            document.getElementById("total-slots").textContent = selectedSlots;
-            document.getElementById("total-amount").textContent = selectedSlots * 3000;
-        }
-    </script>
 </body>
 </html>
