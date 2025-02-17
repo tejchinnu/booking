@@ -166,7 +166,8 @@
                 slotGrid.appendChild(slot);
             }
 
-            const bookedSlotsRef = database.ref("bookedSlots");
+            const bookedSlotsRef = database.ref("bookedSlots/" + currentUser.uid);
+
             bookedSlotsRef.on("value", snapshot => {
                 const bookedSlots = snapshot.val() || {};
                 document.querySelectorAll(".slot").forEach(slot => {
@@ -230,7 +231,14 @@
         }
 
         function updateTotal() {
-            const selectedSlots = document.querySelectorAll(".slot.selected").length;
+            const selectedSlots = [];
+document.querySelectorAll(".slot.selected").forEach(slot => {
+    const slotNumber = parseInt(slot.textContent.replace("Slot ", ""));
+    selectedSlots.push(slotNumber);
+});
+document.getElementById("total-slots").textContent = selectedSlots.length;
+document.getElementById("total-amount").textContent = selectedSlots.length * 3000;
+
             document.getElementById("total-slots").textContent = selectedSlots;
             document.getElementById("total-amount").textContent = selectedSlots * 3000;
         }
