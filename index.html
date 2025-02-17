@@ -79,6 +79,7 @@
     <h3>Total Amount: ₹<span id="total-amount">0</span></h3>
 
     <div class="slot-grid" id="slot-grid"></div>
+let selectedSlots = [];
 
     <script>
         // Firebase configuration
@@ -130,84 +131,91 @@
 
         // Listen for Authentication State Changes
         auth.onAuthStateChanged(user => {
-            if (user) {
-                document.querySelector(".sign-in").style.display = "none";
-                document.querySelector(".sign-out").style.display = "inline-block";
-                currentUser = user;
-                loadSlots();
-            } else {
-                document.querySelector(".sign-in").style.display = "inline-block";
-                document.querySelector(".sign-out").style.display = "none";
-                currentUser = null;
-            }
-        });
+    if (user) {
+        document.querySelector(".sign-in").style.display = "none";
+        document.querySelector(".sign-out").style.display = "inline-block";
+        currentUser = user;
+        loadSlots();
+    } else {
+        document.querySelector(".sign-in").style.display = "inline-block";
+        document.querySelector(".sign-out").style.display = "none";
+        currentUser = null;
+        selectedSlots = [];  // Clear selected slots
+        document.getElementById("slot-grid").innerHTML = "";
+        document.getElementById("total-slots").textContent = 0;
+        document.getElementById("total-amount").textContent = 0;
+    }
+});
 
-        // Load and Display Slots
-        function loadSlots() {
-            const slotGrid = document.getElementById("slot-grid");
-            slotGrid.innerHTML = '';
 
-            for (let i = 1; i <= 500; i++) {
-                const slot = document.createElement("div");
-                slot.classList.add("slot");
-                slot.textContent = "Slot " + i;
+       function loadSlots() {
+    const slotGrid = document.getElementById("slot-grid");
+    slotGrid.innerHTML = '';
 
-                // Short Click to Confirm
-                slot.onclick = () => handleClick(slot, i);
+    for (let i = 1; i <= 500; i++) {
+        const slot = document.createElement("div");
+        slot.classList.add("slot");
+        slot.textContent = "Slot " + i;
 
-                // Long Press to Remove
-                let pressTimer;
-                slot.onmousedown = () => {
-                    pressTimer = setTimeout(() => handleLongPress(slot, i), 800);
-                };
-                slot.onmouseup = () => clearTimeout(pressTimer);
-                slot.onmouseleave = () => clearTimeout(pressTimer);
-
-                slotGrid.appendChild(slot);
-            }
-
-            const bookedSlotsRef = database.ref("bookedSlots/" + currentUser.uid);
-
-            bookedSlotsRef.on("value", snapshot => {
-                const bookedSlots = snapshot.val() || {};
-                document.querySelectorAll(".slot").forEach(slot => {
-                    const slotNumber = parseInt(slot.textContent.replace("Slot ", ""));
-                    let isBooked = false;
-                    for (const uid in bookedSlots) {
-                        if (bookedSlots[uid].includes(slotNumber)) {
-                            isBooked = true;
-                            if (uid === currentUser?.uid) {
-                                slot.classList.add("selected");
-                                slot.classList.remove("booked");
-                            } else {
-                                slot.classList.add("booked");
-                                slot.classList.remove("selected");
-                            }
-                            break;
-                        }
-                    }
-                    if (!isBooked) {
-                        slot.classList.remove("selected");
-                        slot.classList.remove("booked");
-                    }
-                });
-                updateTotal();
-            });
+        // Restore state of selected slots
+        if (selectedSlots.includes(i)) {
+            slot.classList.add("selected");
         }
 
-        function handleClick(slotElement, slotNumber) {
-            if (slotElement.classList.contains("booked")) {
-                alert("This slot is already booked by another user.");
-                return;
-            }
-            if (!slotElement.classList.contains("selected")) {
-                const confirmed = confirm("Do you want to book this slot?");
-                if (confirmed) {
-                    slotElement.classList.add("selected");
-                    saveSelectedSlots();
+        slot.onclick = () => handleClick(slot, i);
+
+        slotGrid.appendChild(slot);
+    }
+
+    const bookedSlotsRef = database.ref("bookedSlots");
+    bookedSlotsRef.on("value", snapshot => {
+        const bookedSlots = snapshot.val() || {};
+        document.querySelectorAll(".slot").forEach(slot => {
+            const slotNumber = parseInt(slot.textContent.replace("Slot ", ""));
+            let isBooked = false;
+            for (const uid in bookedSlots) {
+                if (bookedSlots[uid].includes(slotNumber)) {
+                    isBooked = true;
+                    if (uid === currentUser?.uid) {
+                        slot.classList.add("selected");
+                        slot.classList.remove("booked");
+                    } else {
+                        slot.classList.add("booked");
+                        slot.classList.remove("selected");
+                    }
+                    break;
                 }
             }
+            if (!isBooked) {
+                slot.classList.remove("selected");
+                slot.classList.remove("booked");
+            }
+        });
+        updateTotal();
+    });
+}
+
+        function handleClick(slotElement, slotNumber) {
+    if (slotElement.classList.contains("booked")) {
+        alert("This slot is already booked by another user.");
+        return;
+    }
+    if (slotElement.classList.contains("selected")) {
+        // Unselect the slot
+        slotElement.classList.remove("selected");
+        selectedSlots = selectedSlots.filter(num => num !== slotNumber);
+    } else {
+        // Select the slot
+        const confirmed = confirm("Do you want to book this slot?");
+        if (confirmed) {
+            slotElement.classList.add("selected");
+            selectedSlots.push(slotNumber);
         }
+    }
+    saveSelectedSlots();
+    updateTotal();
+}
+
 
         function handleLongPress(slotElement, slotNumber) {
             if (slotElement.classList.contains("selected")) {
@@ -230,18 +238,17 @@
             }
         }
 
-        function updateTotal() {
-            const selectedSlots = [];
-document.querySelectorAll(".slot.selected").forEach(slot => {
-    const slotNumber = parseInt(slot.textContent.replace("Slot ", ""));
-    selectedSlots.push(slotNumber);
-});
-document.getElementById("total-slots").textContent = selectedSlots.length;
-document.getElementById("total-amount").textContent = selectedSlots.length * 3000;
+       function updateTotal() {
+    const userSlotsRef = database.ref("bookedSlots/" + currentUser.uid);
+    userSlotsRef.once("value", snapshot => {
+        const userSlots = snapshot.val() || [];
+        const totalSlots = userSlots.length;
+        const totalAmount = totalSlots * 3000;
+        document.getElementById("total-slots").textContent = totalSlots;
+        document.getElementById("total-amount").textContent = totalAmount;
+    });
+}
 
-            document.getElementById("total-slots").textContent = selectedSlots;
-            document.getElementById("total-amount").textContent = selectedSlots * 3000;
-        }
     </script>
 </body>
 </html>
